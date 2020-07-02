@@ -4,14 +4,16 @@ Run this code from a Spark notebook (Scala)
 
 val dfTable = spark.sql("SHOW TABLES").filter("tableName == 'REPLACE-WITH-TABLE-NAME'") // you can run for all tables, but better to test with a few first
   
-for (row <- dfTable.collect()) //.take(5))
+for (row <- dfTable.collect()) 
 {   
     var sqlOD = new StringBuilder(); 
     var sqlODPartitionSelect = new StringBuilder(); 
     var sqlODPartitionLocation = new StringBuilder(); 
+    var sqlODRemovePartitionColFromTable = new StringBuilder(); 
     sqlOD.clear()
     sqlODPartitionSelect.clear()
     sqlODPartitionLocation.clear()
+    sqlODRemovePartitionColFromTable.clear()
 
     var database = row.mkString(",").split(",")(0)
     var tableName = row.mkString(",").split(",")(1)
@@ -89,19 +91,12 @@ for (row <- dfTable.collect()) //.take(5))
             sqlODPartitionSelect.append("   CAST(r.filepath(" + partitionIndex.toString() + ") AS " + data_type + ") AS " + col_name + ",\n")
             sqlODPartitionLocation.append("/" + col_name + "=*")
             partitionIndex = partitionIndex + 1 
-        }
+            sqlODRemovePartitionColFromTable.append("  " + col_name + " " + data_type).append(",\n")
+       }
         
         if (processingPartitions == false)
         {
-            sqlOD.append("  " + col_name + " " + data_type)
-            if (i == numberOfColumns)
-            {
-                sqlOD.append("\n")
-            }
-            else
-            {
-                sqlOD.append(",\n")
-            }
+            sqlOD.append("  " + col_name + " " + data_type).append(",\n")
         }
         i = i + 1
     }
@@ -116,6 +111,7 @@ for (row <- dfTable.collect()) //.take(5))
     println(sqlOD.toString()
     .replace("REPLACE_ME_sqlODPartitionSelect",sqlODPartitionSelect.toString())
     .replace("REPLACE_ME_sqlODPartitionLocation",sqlODPartitionLocation.toString())
+    .replace(sqlODRemovePartitionColFromTable.toString(),"") // remove partition columns from WITH statement
+    .replace(",\n) AS [r];","\n) AS [r];") // remove the trailing comma from the WITH statement
     )
-
 }
